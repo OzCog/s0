@@ -46,6 +46,34 @@ vm-trace: vm.h vm_types.h vm_globals.c vm.c vm_instructions.c vm_halcode.c vm_de
 # Build the roms
 ALL-ROMS: stage0_monitor stage1_assembler-0 SET DEHEX stage1_assembler-1 stage1_assembler-2 M0 CAT lisp cc_x86 cc_aarch64 cc_amd64 cc_armv7l cc_knight-posix cc_knight-native forth
 
+# Cognitive architecture targets
+cognitive: cognitive-patterns atomspace-bindings plan9-namespace cognitive-architecture
+
+cognitive-patterns: roms/lisp stage3/cognitive_patterns.scm stage3/ascension.scm | bin
+	cat stage3/ascension.scm stage3/cognitive_patterns.scm > cognitive_temp
+	./bin/vm --rom roms/lisp --tape_01 cognitive_temp --memory 4M
+	rm cognitive_temp
+
+atomspace-bindings: roms/lisp stage3/atomspace_bindings.scm cognitive-patterns | bin
+	cat stage3/ascension.scm stage3/cognitive_patterns.scm stage3/atomspace_bindings.scm > atomspace_temp
+	./bin/vm --rom roms/lisp --tape_01 atomspace_temp --memory 4M
+	rm atomspace_temp
+
+plan9-namespace: roms/lisp stage3/plan9_namespace.scm stage3/ascension.scm | bin
+	cat stage3/ascension.scm stage3/plan9_namespace.scm > namespace_temp
+	./bin/vm --rom roms/lisp --tape_01 namespace_temp --memory 4M
+	rm namespace_temp
+
+cognitive-architecture: roms/lisp stage3/cognitive_architecture.scm cognitive-patterns atomspace-bindings plan9-namespace | bin
+	cat stage3/ascension.scm stage3/cognitive_patterns.scm stage3/plan9_namespace.scm stage3/atomspace_bindings.scm stage3/cognitive_architecture.scm > cognitive_arch_temp
+	./bin/vm --rom roms/lisp --tape_01 cognitive_arch_temp --memory 8M
+	rm cognitive_arch_temp
+
+test-cognitive: roms/lisp stage3/test_cognitive.scm cognitive-patterns atomspace-bindings plan9-namespace | bin
+	cat stage3/ascension.scm stage3/cognitive_patterns.scm stage3/plan9_namespace.scm stage3/atomspace_bindings.scm stage3/test_cognitive.scm > test_cognitive_temp
+	./bin/vm --rom roms/lisp --tape_01 test_cognitive_temp --memory 8M
+	rm test_cognitive_temp
+
 stage0_monitor: vm stage0/stage0_monitor.hex0 | roms
 	./bin/vm --rom seed/NATIVE/knight/hex0-seed --tape_01 stage0/stage0_monitor.hex0 --tape_02 roms/stage0_monitor
 

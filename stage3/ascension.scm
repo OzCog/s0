@@ -127,4 +127,71 @@
 			((string? a) (if (string? b) (string=? a b) nil))
 			((char? a) (if (char? b) (= a b) nil))
 			(#t (= a b)))))
+
+; Additional utility functions
+(define member
+	(lambda (item lst)
+		(cond
+			((null? lst) #f)
+			((equal? item (car lst)) #t)
+			(else (member item (cdr lst))))))
+
+(define assoc
+	(lambda (key alist)
+		(cond
+			((null? alist) #f)
+			((equal? key (car (car alist))) (car alist))
+			(else (assoc key (cdr alist))))))
+
+(define ceiling
+	(lambda (x)
+		(if (= x (floor x))
+			x
+			(+ (floor x) 1))))
+
+(define floor
+	(lambda (x)
+		(if (>= x 0)
+			(truncate x)
+			(- (truncate (- x)) 1))))
+
+(define truncate
+	(lambda (x)
+		(if (>= x 0)
+			(- x (mod x 1))
+			(+ x (mod (- x) 1)))))
+
+(define substring
+	(lambda (str start end)
+		(let ((chars (string->list str)))
+			(list->string (take (drop chars start) (- end start))))))
+
+(define take
+	(lambda (lst n)
+		(if (or (null? lst) (<= n 0))
+			nil
+			(cons (car lst) (take (cdr lst) (- n 1))))))
+
+(define drop
+	(lambda (lst n)
+		(if (or (null? lst) (<= n 0))
+			lst
+			(drop (cdr lst) (- n 1)))))
+
+(define last
+	(lambda (lst)
+		(if (null? (cdr lst))
+			lst
+			(last (cdr lst)))))
+
+(define equal?
+	(lambda (a b)
+		(cond
+			((and (null? a) (null? b)) #t)
+			((or (null? a) (null? b)) #f)
+			((and (pair? a) (pair? b))
+			 (and (equal? (car a) (car b))
+				  (equal? (cdr a) (cdr b))))
+			(else (eq? a b)))))
+
 "ascension has successfully loaded"
