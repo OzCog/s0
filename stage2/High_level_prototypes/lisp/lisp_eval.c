@@ -18,6 +18,7 @@
 #include "lisp.h"
 
 /* Cognitive Grammar primitive function declarations */
+struct cell* prim_test_cognitive(struct cell* args);
 struct cell* prim_make_node(struct cell* args);
 struct cell* prim_node_p(struct cell* args);
 struct cell* prim_node_type(struct cell* args);
@@ -485,6 +486,12 @@ struct cell* prim_halt(struct cell* args)
 
 /* Ghost in the Guile Shell - Cognitive Grammar Primitives */
 
+/* Simple test function */
+struct cell* prim_test_cognitive(struct cell* args)
+{
+	return make_sym("cognitive-test-works");
+}
+
 /* Hypergraph node: (node type value metadata) */
 struct cell* prim_make_node(struct cell* args)
 {
@@ -699,6 +706,7 @@ void init_sl3()
 	spinup(make_sym("HALT"), make_prim(prim_halt));
 	
 	/* Cognitive Grammar Primitives - Ghost in the Guile Shell */
+	spinup(make_sym("test-cognitive"), make_prim(prim_test_cognitive));
 	spinup(make_sym("make-node"), make_prim(prim_make_node));
 	spinup(make_sym("node?"), make_prim(prim_node_p));
 	spinup(make_sym("node-type"), make_prim(prim_node_type));
