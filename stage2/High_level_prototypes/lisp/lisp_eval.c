@@ -17,6 +17,18 @@
 
 #include "lisp.h"
 
+/* Cognitive Grammar primitive function declarations */
+struct cell* prim_make_node(struct cell* args);
+struct cell* prim_node_p(struct cell* args);
+struct cell* prim_node_type(struct cell* args);
+struct cell* prim_node_value(struct cell* args);
+struct cell* prim_make_edge(struct cell* args);
+struct cell* prim_edge_p(struct cell* args);
+struct cell* prim_make_agent(struct cell* args);
+struct cell* prim_agent_p(struct cell* args);
+struct cell* prim_make_tensor_shape(struct cell* args);
+struct cell* prim_hypergraph(struct cell* args);
+
 /* Support functions */
 struct cell* findsym(char *name)
 {
@@ -471,6 +483,150 @@ struct cell* prim_halt(struct cell* args)
 	exit(EXIT_SUCCESS);
 }
 
+/* Ghost in the Guile Shell - Cognitive Grammar Primitives */
+
+/* Hypergraph node: (node type value metadata) */
+struct cell* prim_make_node(struct cell* args)
+{
+	if(nil == args || nil == args->cdr) return nil;
+	
+	struct cell* node_marker = make_sym("node");
+	struct cell* type = args->car;
+	struct cell* value = args->cdr->car;
+	struct cell* metadata = (nil != args->cdr->cdr) ? args->cdr->cdr->car : nil;
+	
+	return make_cons(node_marker, 
+		   make_cons(type, 
+			   make_cons(value, 
+				   make_cons(metadata, nil))));
+}
+
+/* Check if object is a hypergraph node */
+struct cell* prim_node_p(struct cell* args)
+{
+	if(nil == args) return nil;
+	
+	struct cell* obj = args->car;
+	if(nil == obj || SYM != obj->car->type) return nil;
+	
+	char* marker = obj->car->string;
+	if(0 == strncmp(marker, "node", 4)) return tee;
+	return nil;
+}
+
+/* Get node type */
+struct cell* prim_node_type(struct cell* args)
+{
+	if(nil == args) return nil;
+	
+	struct cell* node = args->car;
+	if(nil == node || nil == node->cdr) return nil;
+	
+	return node->cdr->car;
+}
+
+/* Get node value */
+struct cell* prim_node_value(struct cell* args)
+{
+	if(nil == args) return nil;
+	
+	struct cell* node = args->car;
+	if(nil == node || nil == node->cdr || nil == node->cdr->cdr) return nil;
+	
+	return node->cdr->cdr->car;
+}
+
+/* Hypergraph edge: (edge from to label weight) */
+struct cell* prim_make_edge(struct cell* args)
+{
+	if(nil == args || nil == args->cdr || nil == args->cdr->cdr) return nil;
+	
+	struct cell* edge_marker = make_sym("edge");
+	struct cell* from = args->car;
+	struct cell* to = args->cdr->car;
+	struct cell* label = args->cdr->cdr->car;
+	struct cell* weight = (nil != args->cdr->cdr->cdr) ? args->cdr->cdr->cdr->car : make_int(1);
+	
+	return make_cons(edge_marker,
+		   make_cons(from,
+			   make_cons(to,
+				   make_cons(label,
+					   make_cons(weight, nil)))));
+}
+
+/* Check if object is a hypergraph edge */
+struct cell* prim_edge_p(struct cell* args)
+{
+	if(nil == args) return nil;
+	
+	struct cell* obj = args->car;
+	if(nil == obj || SYM != obj->car->type) return nil;
+	
+	char* marker = obj->car->string;
+	if(0 == strncmp(marker, "edge", 4)) return tee;
+	return nil;
+}
+
+/* Agent: (agent id state goals actions) */
+struct cell* prim_make_agent(struct cell* args)
+{
+	if(nil == args || nil == args->cdr) return nil;
+	
+	struct cell* agent_marker = make_sym("agent");
+	struct cell* id = args->car;
+	struct cell* state = args->cdr->car;
+	struct cell* goals = (nil != args->cdr->cdr) ? args->cdr->cdr->car : nil;
+	struct cell* actions = (nil != args->cdr->cdr && nil != args->cdr->cdr->cdr) ? 
+						   args->cdr->cdr->cdr->car : nil;
+	
+	return make_cons(agent_marker,
+		   make_cons(id,
+			   make_cons(state,
+				   make_cons(goals,
+					   make_cons(actions, nil)))));
+}
+
+/* Check if object is an agent */
+struct cell* prim_agent_p(struct cell* args)
+{
+	if(nil == args) return nil;
+	
+	struct cell* obj = args->car;
+	if(nil == obj || SYM != obj->car->type) return nil;
+	
+	char* marker = obj->car->string;
+	if(0 == strncmp(marker, "agent", 5)) return tee;
+	return nil;
+}
+
+/* Tensor shape: (tensor-shape dimensions type-sig dof) */
+struct cell* prim_make_tensor_shape(struct cell* args)
+{
+	if(nil == args || nil == args->cdr) return nil;
+	
+	struct cell* tensor_marker = make_sym("tensor-shape");
+	struct cell* dimensions = args->car;
+	struct cell* type_sig = args->cdr->car;
+	struct cell* dof = (nil != args->cdr->cdr) ? args->cdr->cdr->car : make_int(1);
+	
+	return make_cons(tensor_marker,
+		   make_cons(dimensions,
+			   make_cons(type_sig,
+				   make_cons(dof, nil))));
+}
+
+/* Create a simple hypergraph representation */
+struct cell* prim_hypergraph(struct cell* args)
+{
+	struct cell* hg_marker = make_sym("hypergraph");
+	struct cell* nodes = (nil != args) ? args->car : nil;
+	struct cell* edges = (nil != args && nil != args->cdr) ? args->cdr->car : nil;
+	
+	return make_cons(hg_marker,
+		   make_cons(nodes,
+			   make_cons(edges, nil)));
+}
+
 struct cell* prim_list(struct cell* args) {return args;}
 struct cell* prim_cons(struct cell* args) { return make_cons(args->car, args->cdr->car); }
 struct cell* prim_car(struct cell* args) { return args->car->car; }
@@ -541,4 +697,16 @@ void init_sl3()
 	spinup(make_sym("car"), make_prim(prim_car));
 	spinup(make_sym("cdr"), make_prim(prim_cdr));
 	spinup(make_sym("HALT"), make_prim(prim_halt));
+	
+	/* Cognitive Grammar Primitives - Ghost in the Guile Shell */
+	spinup(make_sym("make-node"), make_prim(prim_make_node));
+	spinup(make_sym("node?"), make_prim(prim_node_p));
+	spinup(make_sym("node-type"), make_prim(prim_node_type));
+	spinup(make_sym("node-value"), make_prim(prim_node_value));
+	spinup(make_sym("make-edge"), make_prim(prim_make_edge));
+	spinup(make_sym("edge?"), make_prim(prim_edge_p));
+	spinup(make_sym("make-agent"), make_prim(prim_make_agent));
+	spinup(make_sym("agent?"), make_prim(prim_agent_p));
+	spinup(make_sym("make-tensor-shape"), make_prim(prim_make_tensor_shape));
+	spinup(make_sym("hypergraph"), make_prim(prim_hypergraph));
 }
