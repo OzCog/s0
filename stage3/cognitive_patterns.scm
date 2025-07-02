@@ -1,0 +1,207 @@
+;; Copyright (C) 2024 Copilot AI
+;; This file extends stage0 with cognitive patterns for AI reasoning
+;;
+;; stage0 is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; stage0 is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with stage0.  If not, see <http://www.gnu.org/licenses/>.
+
+;; Basic pattern matching and unification for cognitive reasoning
+
+;; Variable representation - symbols starting with ?
+(define variable? 
+  (lambda (x) 
+    (and (symbol? x) 
+         (let ((str (symbol->string x)))
+           (and (> (string-length str) 0)
+                (char=? (string-ref str 0) #\?))))))
+
+;; Occurs check for unification
+(define occurs-check
+  (lambda (var term subst)
+    (cond
+      ((variable? term) 
+       (let ((binding (assoc term subst)))
+         (if binding
+             (occurs-check var (cdr binding) subst)
+             (eq? var term))))
+      ((pair? term)
+       (or (occurs-check var (car term) subst)
+           (occurs-check var (cdr term) subst)))
+      (else #f))))
+
+;; Unification algorithm
+(define unify
+  (lambda (term1 term2 subst)
+    (cond
+      ((eq? subst 'fail) 'fail)
+      ((eq? term1 term2) subst)
+      ((variable? term1) (unify-variable term1 term2 subst))
+      ((variable? term2) (unify-variable term2 term1 subst))
+      ((and (pair? term1) (pair? term2))
+       (unify (cdr term1) (cdr term2)
+              (unify (car term1) (car term2) subst)))
+      (else 'fail))))
+
+;; Unify a variable with a term
+(define unify-variable
+  (lambda (var term subst)
+    (let ((binding (assoc var subst)))
+      (cond
+        (binding (unify (cdr binding) term subst))
+        ((and (variable? term) (assoc term subst))
+         (unify var (cdr (assoc term subst)) subst))
+        ((occurs-check var term subst) 'fail)
+        (else (cons (cons var term) subst))))))
+
+;; Apply substitution to a term
+(define substitute
+  (lambda (term subst)
+    (cond
+      ((variable? term)
+       (let ((binding (assoc term subst)))
+         (if binding
+             (substitute (cdr binding) subst)
+             term)))
+      ((pair? term)
+       (cons (substitute (car term) subst)
+             (substitute (cdr term) subst)))
+      (else term))))
+
+;; Pattern matching with backtracking
+(define match-pattern
+  (lambda (pattern data)
+    (unify pattern data nil)))
+
+;; Basic inference rules
+(define modus-ponens
+  (lambda (premise1 premise2)
+    ; If premise1 is (implies A B) and premise2 is A, return B
+    (cond
+      ((and (pair? premise1) 
+            (eq? (car premise1) 'implies)
+            (eq? premise2 (cadr premise1)))
+       (caddr premise1))
+      (else nil))))
+
+;; Forward chaining inference
+(define forward-chain
+  (lambda (facts rules)
+    (define (apply-rules facts rules new-facts)
+      (if (null? rules)
+          new-facts
+          (let* ((rule (car rules))
+                 (antecedent (car rule))
+                 (consequent (cadr rule))
+                 (matches (filter (lambda (fact) 
+                                    (not (eq? (match-pattern antecedent fact) 'fail)))
+                                  facts)))
+            (if (null? matches)
+                (apply-rules facts (cdr rules) new-facts)
+                (apply-rules facts (cdr rules) 
+                           (append new-facts 
+                                   (map (lambda (match)
+                                          (substitute consequent 
+                                                    (match-pattern antecedent match)))
+                                        matches)))))))
+    (let ((new-facts (apply-rules facts rules nil)))
+      (if (null? new-facts)
+          facts
+          (forward-chain (append facts new-facts) rules)))))
+
+;; Basic frame representation for knowledge
+(define make-frame
+  (lambda (name slots)
+    (cons name slots)))
+
+(define frame-name car)
+(define frame-slots cdr)
+
+(define get-slot
+  (lambda (frame slot-name)
+    (let ((slot (assoc slot-name (frame-slots frame))))
+      (if slot (cdr slot) nil))))
+
+(define set-slot
+  (lambda (frame slot-name value)
+    (make-frame (frame-name frame)
+                (cons (cons slot-name value)
+                      (filter (lambda (slot) 
+                                (not (eq? (car slot) slot-name)))
+                              (frame-slots frame))))))
+
+;; Goal-directed reasoning
+(define goal-stack nil)
+
+(define push-goal
+  (lambda (goal)
+    (set! goal-stack (cons goal goal-stack))))
+
+(define pop-goal
+  (lambda ()
+    (if (null? goal-stack)
+        nil
+        (let ((goal (car goal-stack)))
+          (set! goal-stack (cdr goal-stack))
+          goal))))
+
+;; Basic planning operator
+(define make-operator
+  (lambda (name preconditions effects)
+    (list 'operator name preconditions effects)))
+
+(define operator-name cadr)
+(define operator-preconditions caddr)
+(define operator-effects cadddr)
+
+;; Check if operator is applicable in given state
+(define applicable?
+  (lambda (operator state)
+    (let ((preconds (operator-preconditions operator)))
+      (fold-left (lambda (acc precond)
+                   (and acc (member precond state)))
+                 #t preconds))))
+
+;; Apply operator to state
+(define apply-operator
+  (lambda (operator state)
+    (if (applicable? operator state)
+        (append state (operator-effects operator))
+        state)))
+
+;; Simple truth maintenance
+(define belief-base nil)
+
+(define add-belief
+  (lambda (belief justification)
+    (set! belief-base 
+          (cons (cons belief justification) belief-base))))
+
+(define retract-belief
+  (lambda (belief)
+    (set! belief-base
+          (filter (lambda (entry) 
+                    (not (eq? (car entry) belief)))
+                  belief-base))))
+
+(define get-justification
+  (lambda (belief)
+    (let ((entry (assoc belief belief-base)))
+      (if entry (cdr entry) nil))))
+
+;; Dependency tracking for beliefs
+(define dependent-beliefs
+  (lambda (belief)
+    (filter (lambda (entry)
+              (member belief (cdr entry)))
+            belief-base)))
+
+"cognitive patterns library loaded successfully"
